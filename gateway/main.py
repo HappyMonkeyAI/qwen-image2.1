@@ -57,6 +57,30 @@ def _sample_params() -> dict:
     }
 
 
+def _image_dims(data: bytes):
+    """Read (width, height) from raw PNG/JPEG bytes with the stdlib only.
+
+    Returns None if the format is unrecognized — callers fall back to 0/0,
+    which lets sd-server apply its own default.
+    """
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        import struct
+        return struct.unpack(">II", data[16:24])
+    if data[:2] == b"\xff\xd8":  # JPEG: scan for a SOF0-SOF15 marker
+        i = 2
+        while i + 9 < len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                h, w = struct.unpack(">HH", data[i + 5:i + 9])
+                return (w, h)
+            seg_len = struct.unpack(">H", data[i + 2:i + 4])[0]
+            i += 2 + seg_len
+    return None
+
+
 async def _submit_job(payload: dict) -> dict:
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(f"{SD_SERVER}/sdcpp/v1/img_gen", json=payload)
@@ -102,10 +126,13 @@ async def edit(
     import base64
 
     b64 = base64.b64encode(data).decode()
+    # Forward the input image's real dimensions so sd-server preserves them
+    # instead of falling back to its 512 default (which silently downscales edits).
+    width, height = _image_dims(data) or (0, 0)
     payload = {
         "prompt": prompt,
-        "width": 0,
-        "height": 0,
+        "width": width,
+        "height": height,
         "seed": -1,
         "init_image": b64,
         "sample_params": _sample_params(),

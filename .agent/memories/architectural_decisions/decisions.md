@@ -15,7 +15,7 @@
 - **Consequences:** Parity is mandatory — the worker must run the *identical* abliterated encoder GGUF or hidden states drift and images change. AD-Q4_K (5.3 GB) is the fallback quant for 8 GB boxes but breaks strict parity with a Q8_0 local baseline, so benchmarks must note which quant pair was used.
 
 ## AD-03: Use sd.cpp's `token_embed_custom` path; no fork
-- **Date:** 2026-10-12 · **Status:** Active
+- **Date:** 2026-10-12 · **Status:** SUPERSEDED — corrected same day after source trace. `token_embed_custom` is the CLIP conditioner's A1111 custom-words mechanism (SD1/2/SDXL only); the Qwen LLM conditioner has no injection point. Offload requires patching sd.cpp (encode-dump + inject). New design pending user approval — see PROGRESS.md 2026-10-12 Phase 3 entry.
 - **Context:** Offloading required injecting precomputed embeddings into the diffusion pipeline.
 - **Decision:** Consume the existing `token_embed_custom` injection path in `src/conditioning/conditioner.hpp` (LLM output is a float tensor `[n_token, hidden_size]` in `c_crossattn`; the custom path skips the local LLM). Orchestrate from the Python gateway layer instead of forking stable-diffusion.cpp.
 - **Rationale:** Forking a fast-moving upstream to add a feature that already exists as an injection point creates permanent merge debt. The gateway already proxies sd-server's async job API, so it is the natural place to intercept between encoding and denoising.

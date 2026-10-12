@@ -45,7 +45,7 @@
 - **Pattern:** Rather than committing 425 MB of stable-diffusion.cpp into the project repo, it is a git submodule locked at 792bcd3 — the exact commit the verified Docker image was built from. Fresh clones use `git clone --recurse-submodules`.
 - **Lesson:** For shareable docker-compose packages that build third-party C++ repos, pin-by-submodule gives reproducibility without repo bloat; record the pinned commit in CONTEXT.md so future agents know which revision the images correspond to.
 
-## [Success] Offload seam found without forking sd.cpp
+## [Failure] "token_embed_custom offload seam" was a misread (corrected 2026-10-12)
 - **Date:** 2026-10-12
-- **Pattern:** `src/conditioning/conditioner.hpp` already has a `token_embed_custom` path: LLM output is a float tensor `[n_token, hidden_size]` stored in `c_crossattn`, and the custom-embed path injects precomputed embeddings and skips the local LLM entirely.
-- **Lesson:** Before forking a fast-moving upstream, grep its source for existing injection points — the feature you're about to build may already be a flag away. The offload experiment only needs an identical-GGUF llama.cpp worker returning that tensor; no sd.cpp modification.
+- **Pattern:** We assumed sd.cpp's `token_embed_custom` path could inject precomputed LLM hidden states, so offload would need no fork. Source trace disproved it: `token_embed_custom` lives in `FrozenCLIPEmbedderWithCustomWords` — the SD1/SD2/SDXL **CLIP** conditioner's A1111 custom-words mechanism (`--embd-dir`). Qwen-Image-2.1 uses the LLM conditioner, whose `encode_prompt()` unconditionally calls `llm->compute()`; there is no CLI flag, server endpoint, or file-load path to supply precomputed hidden states (verified: only server mode is `img_gen`; upstream's single newer commit d637cfb adds only a sigma preset).
+- **Lesson:** "The seam already exists" must be proven by tracing the *specific* model's code path, not by finding a similarly-named member in a sibling class. Offloading text encoding requires patching sd.cpp (encode-only dump + inject path) — see AD-03 correction.

@@ -68,7 +68,9 @@ The script is resumable and verifies every file against its Content-Length befor
 
 ## Offloading the text encoder (experimental)
 
-The encoder runs once per generation (~16 s on the 5090). If you have an idle GPU box, you can run it there via llama.cpp and ship only the ~few-MB hidden-state tensor back over LAN — sd-server's `token_embed_custom` path consumes precomputed embeddings, so no fork of stable-diffusion.cpp is needed. The denoiser always stays local: per-step activations over a network would kill the sampling loop.
+The encoder runs once per generation (~16 s on the 5090). If you have an idle GPU box, you can run it there via llama.cpp and ship only the ~few-MB hidden-state tensor back over LAN. The denoiser always stays local: per-step activations over a network would kill the sampling loop.
+
+Status (2026-10-12): **deferred**. A source trace showed stock stable-diffusion.cpp has no way to inject precomputed LLM hidden states for Qwen-Image-2.1 — `token_embed_custom` is the CLIP conditioner's custom-words path only, and the LLM conditioner always runs its own encoder. Offload therefore needs a small maintained patch to sd.cpp (encode-only dump + inject of the post-processed conditioning tensor), which keeps parity by construction. The design is documented in ROADMAP.md; the single-5090 product above works without it.
 
 The `encoder-worker` service in `docker-compose.yml` is stubbed out (commented). To try it: run a worker on the remote box with the **identical** encoder GGUF (parity matters — different quants give different hidden states and drifted images), then set `OFFLOAD_WORKERS=http://<host>:8081` in `.env` before `docker compose up`.
 

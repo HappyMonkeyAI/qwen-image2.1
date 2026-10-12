@@ -3,7 +3,7 @@
 ## gateway/main.py (FastAPI)
 - Proxies sd-server's native async job API (`/sdcpp/v1/img_gen`) rather than the OpenAI-compatible endpoints, because the async API gives live progress previews and cancel — the frontend polls `/api/jobs/{id}` on a 3 s cadence.
 - The Turbo sigma schedule `1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0` is baked in as a constant with 8 steps / CFG 1.0 / euler — do not parameterize it casually (see CONTEXT.md rules).
-- `/api/edit` is multipart (`UploadFile`) → requires `python-multipart`; forgetting it crashes the whole app at import time, not at request time.
+- `/api/edit` is multipart (`UploadFile`) → requires `python-multipart`; forgetting it crashes the whole app at import time, not at request time. It calls `_image_dims()` (stdlib PNG IHDR / JPEG SOF reader) and forwards the upload's real width/height — without that sd-server silently falls back to 512×512 and edits get downscaled.
 - `GEMMA_URL` env (default `http://host.docker.internal:1234/v1`) backs `/api/prompt-assist`; `OFFLOAD_WORKERS` env is read but Phase 3 routing is not implemented yet.
 - Static frontend served from `/app/web` (copied at image build from the project-root context — the Dockerfile's build context is the repo root, NOT `gateway/`).
 

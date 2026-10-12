@@ -15,7 +15,20 @@ Newest first. Every `done` task cites the real command/output that proves it (AD
 - **T1.2 models** ✅ — all four files at authoritative sizes (verified against HF API `/api/models/.../tree/main`, not README): denoiser 7,591,554,784 B; encoder 8,709,520,096 B; mmproj F16 1,159,029,984 B; VAE 675,509,688 B.
 - **T1.1 image build** ✅ — `docker build -f docker/Dockerfile.cuda --build-arg CUDA_VERSION=12.8.0 --build-arg UBUNTU_VERSION=24.04 --build-arg CUDA_ARCHITECTURES=120 --build-arg GGML_CUDA_FA_ALL_QUANTS=ON -t sdcpp-cuda:5090 .` → exit 0. First attempt failed on missing ggml submodule (`git clone --depth 1` doesn't fetch submodules); fixed with `git submodule update --init --depth 1`.
 
+## 2026-10-12 — Phase 3 recon: offload seam does not exist in stock sd.cpp (user deferred)
+
+- **T3.1 recon** ✅ (investigation complete, build deferred by user) — Traced the Qwen-Image-2.1 conditioning path in `sd-cpp/src/conditioning/conditioner.hpp`:
+  - `token_embed_custom` / `--embd-dir` belong to `FrozenCLIPEmbedderWithCustomWords` (SD1/SD2/SDXL CLIP conditioner, A1111 custom words) — NOT the LLM path. Prior "no-fork offload seam" assumption was a misread; AD-03 superseded, lesson logged in patterns_and_lessons.md.
+  - The Qwen LLM conditioner's `encode_prompt()` unconditionally calls `llm->compute()`, then applies token weighting, slices the prompt-template prefix, zero-pads, and builds `c_token_types` image slots. No CLI flag, server endpoint, or file-load path accepts precomputed hidden states; only server mode is `img_gen`. Upstream's single newer commit (d637cfb) adds only a sigma preset — no encode-only mode.
+  - **Viable design (for when Phase 3 resumes):** small maintained patch to sd.cpp — encode-only dump of the post-processed `c_crossattn` + inject path that skips `llm->compute()`. Parity by construction (same tokenizer/template/weighting code), worker = llama.cpp box with identical GGUF. Text-only generation is deterministic given identical tokens; editing would need image-slot handling too.
+  - **User decision:** defer offload, ship the single-5090 product as-is. Phase 3 stays documented in ROADMAP/SPEC for later.
+
+## 2026-10-12 — Edit path verified E2E (T1.4 + T2.6) + gateway downscale bug fixed
+
+- **T1.4 / T2.6 edit E2E** ✅ — `POST /api/edit` multipart (`prompt` + `image=@models/test_baseline.png`) → `job_6acd2009_00000001` → `completed` in ~12 s → `output/job_6acd2009_00000001_0.png`, verified **1024×1024** PNG. This exercises the full mmproj + `init_image` conditioning path through gateway → sd-server.
+- **Bug found & fixed: edits silently downscaled to 512×512.** The gateway hardcoded `width: 0, height: 0` in the edit payload, so sd-server fell back to its default instead of preserving the input image's size (first edit attempt produced a 512×512 PNG). Fix: added `_image_dims()` to `gateway/main.py` — stdlib-only PNG IHDR / JPEG SOF dimension reader — and the `/api/edit` handler now forwards the upload's real dimensions. Rebuilt gateway, re-ran edit → 1024×1024 confirmed.
+- **Operational note:** sd-server restarts (e.g. after a stopped probe) leave the gateway's httpx pool pointing at a dead peer for a few seconds — `/api/edit` returns `Internal Server Error` until the container is back; retry, don't rebuild.
+
 ## Open items carried forward
 
-- **T1.4 / T2.6** — edit path (mmproj + input image) scaffolded in compose and gateway but never exercised end-to-end. Next concrete task.
-- **Phase 3** — no llama.cpp worker running anywhere yet; 192.168.5.232 ports 1234/8080/5000/8188 all closed as of today's probe.
+- **Phase 3** — deferred by user; design + patch-branch plan recorded above and in ROADMAP.md. No llama.cpp worker running anywhere yet; 192.168.5.232 ports 1234/8080/5000/8188 all closed as of today's probe.
