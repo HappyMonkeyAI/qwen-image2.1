@@ -2,6 +2,21 @@
 
 Newest first. Every `done` task cites the real command/output that proves it (ADR-0001: worker self-report is never Done proof).
 
+## 2026-10-12 — Session close (end of day)
+
+**State at close:** working tree clean, local `main` even with `origin/main` at `a222a41`. Product ships as a single-5090 docker-compose stack: native sd-server web UI on :8080 (generation + reference-image editing), API-only FastAPI gateway on :3000 (proxy + prompt-assist). All four model files present at authoritative sizes; edit path verified E2E and genuinely conditioning on the input image.
+
+**Done today (all pushed):**
+- Phase 1: CUDA 12.8 / arch 120 Docker build, all 4 models downloaded & size-verified, ~46 s baseline generation.
+- Phase 2: docker-compose stack, gateway + frontend, E2E generation + editing through the API; public repo.
+- Edit path fixed for real: `init_image` was silently ignored by Qwen-Image 2.1 → switched to `ref_images[]`; confirmed a true edit (scene preserved, change applied), not a regeneration. No HF model swap needed.
+- Option 1 restructure: dropped the redundant custom `web/` frontend; :3000 is API-only, :8080 owns the UI. Docs + LTM updated to match.
+- Frontend timing bug (epoch seconds vs ms) and JPEG-upload crash (branch-local `import struct`) both fixed and verified.
+
+**Known / carried forward:**
+- **Phase 3 offload — deferred by user.** Stock sd.cpp has no LLM hidden-state injection for Qwen-Image; would need a maintained patch branch (encode-dump + inject). No llama.cpp worker running anywhere yet.
+- Native :8080 UI does not persist images to disk (returns base64 in the response); only the gateway path writes to `output/`. Untouched this session — revisit if on-disk saves from the native UI are wanted.
+
 ## 2026-10-12 — Phase 2 complete + repo public
 
 - **T2.4 E2E generation via gateway** ✅ — `POST /api/generate` → `job_6acd0f5b_00000000` → polled to `completed` in ~45 s → `output/job_6acd0f5b_00000000_0.png`, verified 1024×1024 PNG (2.3 MB). Frontend assets (`/`, `/js/main.js`, `/css/styles.css`) all HTTP 200 on :3000.
