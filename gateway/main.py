@@ -146,7 +146,11 @@ async def edit(
         "width": width,
         "height": height,
         "seed": -1,
-        "init_image": b64,
+        # ref_images[] (not init_image) is the field that switches sd-server into
+        # EDIT mode for Qwen-Image 2.1: VAE-encodes the upload and injects it as a
+        # reference image. init_image is ignored by this model family, which was
+        # silently producing plain text-to-image output.
+        "ref_images": [b64],
         "sample_params": _sample_params(),
         "output_format": "png",
         "preview": "proj",

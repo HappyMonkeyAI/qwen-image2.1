@@ -35,6 +35,13 @@ Newest first. Every `done` task cites the real command/output that proves it (AD
 - **Fixes:** (1) moved `import struct` to the top of `_image_dims()`; (2) added `_detail(r)` to `web/js/main.js` — tries JSON `{detail}`, falls back to raw text — and switched all three error call sites (generate, prompt-assist, edit) to it. No more JSON-parse crash on any non-JSON error body.
 - **Verified:** PIL-generated valid 512×512 JPEG → gateway parser returns `(512, 512)` → `POST /api/edit` accepted (`job_6acd3247`) → completed → output PNG **512×512** (dimensions correctly preserved from the JPEG input). PNG path re-verified in a real browser earlier same day.
 
+## 2026-10-12 — Edit path was silently text-to-image: `init_image` ignored, fixed with `ref_images[]`
+
+- **User report:** "it's not an edit model… it just generated new ones." True — but the model IS a genuine edit model (Qwen-Image 2.1 Turbo supports editing at CFG=1 per the AtomicChat README). The bug was ours: the gateway sent `init_image`, which sd-server's Qwen-Image path **ignores**. Verified in server logs: those jobs never logged "EDIT mode" or any vision encoding — pure text-to-image, same as /api/generate.
+- **Fix:** `gateway/main.py` `/api/edit` now sends `"ref_images": [b64]`. sd-server log for the fixed job shows: `preprocess ref[0]: 1024x1024 …`, `Using 'qwen' preset for reference images`, `EDIT mode --- image.cpp:274`, plus VAE encode + qwen3vl vision encoding of the input.
+- **Verified E2E through gateway:** `POST /api/edit` (multipart, test_baseline.png, "paint the panda wearing a top hat") → `job_6acd365c_0000000b` → completed → `output/gw-edit-test.png`. Vision analysis: original lake/mountain/forest scene **preserved**, panda with black top hat added on the rock in the foreground — a real edit, not a regeneration. Direct sd-server probe (`ref_images[]`) produced the same result; an `init_image` probe of the same prompt produced only the untouched landscape.
+- **No HF model swap needed** — no separate "edit model" required; this was a payload-field bug.
+
 ## Open items carried forward
 
 - **Phase 3** — deferred by user; design + patch-branch plan recorded above and in ROADMAP.md. No llama.cpp worker running anywhere yet; 192.168.5.232 ports 1234/8080/5000/8188 all closed as of today's probe.
