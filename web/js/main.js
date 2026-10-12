@@ -37,7 +37,7 @@ async function trackJob(jobId) {
             image.src = `data:image/png;base64,${img.b64_json}`;
             resultDiv.appendChild(image);
             // Persisted copy for refresh-safe viewing.
-            setStatus(`Done in ${((job.completed - job.started) / 1000).toFixed(1)}s`);
+            setStatus(`Done in ${(job.completed - job.started).toFixed(1)}s`);
             return image;
         }
         if (job.status === 'failed') throw new Error(job.error?.message || 'generation failed');
