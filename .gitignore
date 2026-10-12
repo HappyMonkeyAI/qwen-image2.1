@@ -9,6 +9,9 @@ output/
 # Secrets
 .env
 
+# Machine-local MCP overlay (per Agents Protocol BOOTSTRAP §1d)
+MCP.local.md
+
 # Reference clone of an external frontend repo (not part of this project)
 ref-frontend/
 
