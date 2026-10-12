@@ -1,0 +1,28 @@
+# Model weights — download with scripts/download-models.sh (do not commit ~17GB)
+models/
+!models/.gitkeep
+
+# Generated images
+output/
+!output/.gitkeep
+
+# Secrets
+.env
+
+# Reference clone of an external frontend repo (not part of this project)
+ref-frontend/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs
+*.log

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen-Image 2.1 Turbo</title>
+    <link rel="stylesheet" href="css/styles.css?v=1.0">
+</head>
+<body>
+    <div class="container">
+        <h1>Qwen-Image 2.1 Turbo</h1>
+        <p class="subtitle">Uncensored GGUF &middot; stable-diffusion.cpp &middot; 8-step distilled schedule</p>
+
+        <nav class="tabs">
+            <button id="tabGenerate" class="tab active" onclick="switchTab('generate')">Generate</button>
+            <button id="tabEdit" class="tab" onclick="switchTab('edit')">Edit Image</button>
+        </nav>
+
+        <!-- ============ GENERATE TAB ============ -->
+        <form id="genForm" class="panel active">
+            <div class="form-group">
+                <label for="genPrompt">Prompt</label>
+                <textarea id="genPrompt" rows="3" required placeholder="Describe the image you want to create..."></textarea>
+                <button type="button" id="assistBtn" class="btn-secondary" title="Expand your prompt with gemma-4-e2b">&#10022; Expand prompt</button>
+            </div>
+
+            <div class="form-group">
+                <label for="genNegative">Negative prompt (optional)</label>
+                <input type="text" id="genNegative" placeholder="blurry, low quality, ...">
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label for="genWidth">Width</label>
+                    <select id="genWidth">
+                        <option value="1024" selected>1024 (square)</option>
+                        <option value="1536">1536 &times; 864 (16:9)</option>
+                        <option value="864w">864 &times; 1536 (9:16)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="genHeight">Height</label>
+                    <select id="genHeight">
+                        <option value="1024" selected>1024</option>
+                        <option value="864">864</option>
+                        <option value="1536">1536</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="genSeed">Seed (-1 = random)</label>
+                    <input type="number" id="genSeed" value="-1">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary">Generate</button>
+        </form>
+
+        <!-- ============ EDIT TAB ============ -->
+        <form id="editForm" class="panel">
+            <div class="form-group">
+                <label for="sourceImage">Source Image</label>
+                <input type="file" id="sourceImage" accept="image/*" required>
+                <small class="muted">Upload an image or take a photo with your camera</small>
+            </div>
+
+            <div class="form-group">
+                <div id="imagePreview" style="display:none;">
+                    <img id="previewImg" alt="source preview">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="editPrompt">Edit Instructions</label>
+                <textarea id="editPrompt" rows="3" required placeholder="Describe the changes you want (e.g. 'change the background to a forest', 'add sunglasses')..."></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary">Edit Image</button>
+        </form>
+
+        <!-- ============ STATUS + RESULT ============ -->
+        <div id="status" class="alert" style="display:none;"></div>
+        <div id="result" class="result"></div>
+
+        <div class="disclaimer">
+            <h6>&#9888;&#65039; Disclaimer</h6>
+            <p>This service runs an uncensored, abliterated model for personal and creative use. You are responsible for the content you generate and upload. Generated images may not be suitable for all audiences.</p>
+        </div>
+    </div>
+
+    <script src="js/main.js?v=1.0"></script>
+</body>
+</html>

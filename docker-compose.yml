@@ -1,0 +1,72 @@
+services:
+  sd-server:
+    image: sdcpp-cuda:5090
+    build:
+      context: ./sd-cpp
+      dockerfile: docker/Dockerfile.cuda
+      args:
+        CUDA_VERSION: "12.8.0"
+        UBUNTU_VERSION: "24.04"
+        CUDA_ARCHITECTURES: "120"
+        GGML_CUDA_FA_ALL_QUANTS: "ON"
+    entrypoint: ""
+    command: >
+      /sd-server
+      --diffusion-model /models/Qwen-Image-2.1-Turbo-Q8_0.gguf
+      --llm /models/Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf
+      --vae /models/qwen_image_2.1_vae_bf16.safetensors
+      --llm_vision /models/mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-F16.gguf
+      --diffusion-fa
+      --listen-ip 0.0.0.0
+      --listen-port 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      SD_SERVER_URL: http://sd-server:8080
+      GEMMA_URL: http://host.docker.internal:1234/v1
+      OFFLOAD_WORKERS: ${OFFLOAD_WORKERS:-}
+    volumes:
+      - ./output:/app/output
+    depends_on:
+      - sd-server
+    restart: unless-stopped
+
+  # Optional encoder offload worker — uncomment to enable distributed text encoding.
+  # Runs the same abliterated encoder GGUF via llama.cpp on a remote 8GB box,
+  # returning hidden-state tensors over LAN. The gateway picks it up via OFFLOAD_WORKERS.
+  # encoder-worker:
+  #   image: ghcr.io/ggml-org/llama.cpp:latest
+  #   command: >
+  #     llama-server
+  #     -m /models/Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf
+  #     --port 8081
+  #     --no-webui
+  #   ports:
+  #     - "8081:8081"
+  #   volumes:
+  #     - ./models:/models
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   restart: unless-stopped

@@ -1,0 +1,7 @@
+models/
+sd-cpp/
+ref-frontend/
+output/
+build.log
+.env
+.git/
