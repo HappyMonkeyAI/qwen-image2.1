@@ -1,8 +1,9 @@
 """FastAPI gateway for Qwen-Image-2.1 Turbo (stable-diffusion.cpp backend).
 
-Serves the web frontend and exposes a small JSON API that proxies to the
-sd-server's native async job API (/sdcpp/v1/*), plus a prompt-assist endpoint
-backed by a local vision-capable LLM (gemma-4-e2b) for prompt expansion.
+A pure JSON API that proxies to the sd-server's native async job API
+(/sdcpp/v1/*), plus a prompt-assist endpoint backed by a local vision-capable
+LLM (gemma-4-e2b) for prompt expansion. The web UI is served natively by
+sd-server on :8080 (embedded sdcpp-webui); this gateway adds no frontend.
 
 The Turbo schedule is baked in: 8 steps, CFG 1.0, euler, fixed sigma list.
 """
@@ -14,7 +15,6 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 SD_SERVER = os.environ.get("SD_SERVER_URL", "http://sd-server:8080")
@@ -221,5 +221,11 @@ async def prompt_assist(req: GenerateRequest):
         raise HTTPException(502, f"prompt assistant unavailable: {e}")
 
 
-# Static frontend — mounted last so /api/* wins.
-app.mount("/", StaticFiles(directory="/app/web", html=True), name="web")
+@app.get("/")
+async def root():
+    """The web UI lives on sd-server (:8080); this gateway is API-only."""
+    return {
+        "service": "Qwen-Image-2.1 Turbo Gateway (API only)",
+        "ui": "http://localhost:8080/",
+        "endpoints": ["/api/generate", "/api/edit", "/api/jobs/{id}", "/api/prompt-assist", "/api/output/{filename}"],
+    }

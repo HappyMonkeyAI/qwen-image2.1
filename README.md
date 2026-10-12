@@ -3,12 +3,11 @@
 Self-contained docker-compose stack for running [Qwen-Image-2.1-Turbo](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF) (uncensored / abliterated GGUFs) with [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) — image generation **and** editing from a single GPU, plus an experimental feature to offload the text encoder to a second machine over your LAN.
 
 ```
-web frontend (vanilla JS, no CDN)
-        |
-api-gateway  :3000   FastAPI proxy + prompt-assist + job polling
-        |
 sd-server    :8080   stable-diffusion.cpp HTTP server (CUDA, 1 GPU)
         |            denoiser Q8_0 + abliterated encoder Q8_0 + VAE bf16
+        |            native web UI embedded (sdcpp-webui) — generate & edit here
+        |
+api-gateway  :3000   FastAPI JSON API: proxy + prompt-assist + job polling
         |
 encoder-worker :8081  [optional] llama.cpp on a remote 8GB box
 ```
@@ -28,7 +27,7 @@ cd qwen-image2.1
 docker compose up -d --build
 ```
 
-Then open **http://localhost:3000** for the web UI, or hit the API directly:
+Then open **http://localhost:8080** for the web UI (native sdcpp-webui — image generation and editing live there; use its **Reference Images** section for edits), or hit the gateway API directly on :3000:
 
 ```bash
 curl -X POST http://localhost:3000/api/generate \
@@ -51,7 +50,7 @@ Images land in `output/`. The Turbo schedule (8 steps, CFG 1.0, euler, the fixed
 | `POST /api/prompt-assist` | Expand a rough idea into a detailed prompt via gemma-4-e2b (optional) |
 | `GET  /api/capabilities` | Model + sampler info from sd-server |
 
-sd-server itself also exposes the full OpenAI-compatible API (`/v1/images/generations`, `/v1/images/edits`) and its native job API on port 8080 if you want to skip the gateway.
+The gateway is API-only (no frontend of its own) — it exists to add prompt-assist and a friendly JSON wrapper around sd-server's native job API. The full UI, including reference-image editing, lives on sd-server at :8080. sd-server itself also exposes the OpenAI-compatible API (`/v1/images/generations`, `/v1/images/edits`) and its native `sdcpp/v1` job API on port 8080 if you want to skip the gateway entirely.
 
 ## Models
 
@@ -78,8 +77,7 @@ The `encoder-worker` service in `docker-compose.yml` is stubbed out (commented).
 
 ```
 sd-cpp/    stable-diffusion.cpp submodule (pinned commit; the Dockerfile.cuda is built with Blackwell args)
-gateway/   FastAPI gateway (Dockerfile, main.py, requirements.txt)
-web/       frontend: index.html, css/, js/ — no build step, no CDN
+gateway/   FastAPI gateway, API-only (Dockerfile, main.py, requirements.txt) — no frontend
 scripts/   download-models.sh
 models/    weights (gitignored, populated by the downloader)
 output/    generated images (gitignored)

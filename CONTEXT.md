@@ -9,7 +9,7 @@ Services:
 | Service | Image | Port | Role |
 |---|---|---|---|
 | `sd-server` | built from `sd-cpp/docker/Dockerfile.cuda` (CUDA 12.8, arch 120) | 8080 | stable-diffusion.cpp HTTP server: OpenAI-compatible + native async job API + embedded UI |
-| `api-gateway` | `gateway/Dockerfile` (python:3.12-slim, FastAPI) | 3000 | proxies sd-server async API, bakes in Turbo schedule, serves `web/` frontend, prompt-assist via gemma-4-e2b |
+| `api-gateway` | `gateway/Dockerfile` (python:3.12-slim, FastAPI) | 3000 | **API-only** proxy for sd-server async API, bakes in Turbo schedule, prompt-assist via gemma-4-e2b — no frontend of its own; the web UI is sd-server's native embedded sdcpp-webui on :8080 |
 | `encoder-worker` | llama.cpp (stubbed, commented out) | 8081 | optional remote text encoder for offload experiment |
 
 Models live in `models/` (gitignored; ~17 GB, fetched by `scripts/download-models.sh`). Generated images land in `output/`.

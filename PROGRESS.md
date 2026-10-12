@@ -42,6 +42,13 @@ Newest first. Every `done` task cites the real command/output that proves it (AD
 - **Verified E2E through gateway:** `POST /api/edit` (multipart, test_baseline.png, "paint the panda wearing a top hat") → `job_6acd365c_0000000b` → completed → `output/gw-edit-test.png`. Vision analysis: original lake/mountain/forest scene **preserved**, panda with black top hat added on the rock in the foreground — a real edit, not a regeneration. Direct sd-server probe (`ref_images[]`) produced the same result; an `init_image` probe of the same prompt produced only the untouched landscape.
 - **No HF model swap needed** — no separate "edit model" required; this was a payload-field bug.
 
+## 2026-10-12 — Option 1 restructure: gateway is API-only, UI lives on sd-server :8080
+
+- **Decision (user):** there were two overlapping web frontends — our custom `web/` at :3000 and sd-server's native embedded sdcpp-webui at :8080. Resolved by dropping the custom frontend; :3000 is now a pure JSON API (proxy + prompt-assist), :8080 owns all UI including reference-image editing.
+- **Changes:** removed `web/` (git rm -r); deleted the `StaticFiles` mount + import from `gateway/main.py`, replaced with a `/` route returning a JSON pointer to :8080; dropped `COPY web ./web` from `gateway/Dockerfile`. Updated README (architecture diagram, quick start now points to :8080, API-surface note), CONTEXT.md services table, and LTM modules.md.
+- **Verified:** rebuilt gateway → `:3000/` returns the pointer JSON; `/api/capabilities` still proxies correctly; `:8080/` serves `<title>stable-diffusion.cpp WebUI</title>`. The native UI's edit input is its **Reference Images** section (maps to `ref_images[]`) — confirmed present in the served bundle (`ref_images` ×26, "Reference Images" ×4).
+- **Note:** GitHub moved the repo to `HappyMonkeyAI/qwen-image2.1`; local remote updated to match so pushes keep working.
+
 ## Open items carried forward
 
 - **Phase 3** — deferred by user; design + patch-branch plan recorded above and in ROADMAP.md. No llama.cpp worker running anywhere yet; 192.168.5.232 ports 1234/8080/5000/8188 all closed as of today's probe.
