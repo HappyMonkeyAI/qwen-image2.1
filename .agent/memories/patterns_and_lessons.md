@@ -45,6 +45,11 @@
 - **Pattern:** Rather than committing 425 MB of stable-diffusion.cpp into the project repo, it is a git submodule locked at 792bcd3 — the exact commit the verified Docker image was built from. Fresh clones use `git clone --recurse-submodules`.
 - **Lesson:** For shareable docker-compose packages that build third-party C++ repos, pin-by-submodule gives reproducibility without repo bloat; record the pinned commit in CONTEXT.md so future agents know which revision the images correspond to.
 
+## [Failure] Branch-local `import` → UnboundLocalError in sibling branch (JPEG edit crash)
+- **Date:** 2026-10-12
+- **Pattern:** `_image_dims()` imported `struct` inside the PNG `if` branch only; Python hoists the name to function scope, so the JPEG branch raised `UnboundLocalError` → gateway 500 on every JPEG upload. The frontend then crashed parsing the plain-text 500 body as JSON (`Unexpected token 'I', "Internal S"...`).
+- **Lesson:** Put stdlib imports at module/function top, never inside one conditional branch of a multi-branch function — a name imported in one branch is *unbound* (not merely missing) in the others. And test every input format your parser claims to support; the PNG path was verified, the JPEG path was written but never exercised until a user hit it. Pair with: frontend error handlers must tolerate non-JSON error bodies (`_detail(r)` fallback).
+
 ## [Failure] "token_embed_custom offload seam" was a misread (corrected 2026-10-12)
 - **Date:** 2026-10-12
 - **Pattern:** We assumed sd.cpp's `token_embed_custom` path could inject precomputed LLM hidden states, so offload would need no fork. Source trace disproved it: `token_embed_custom` lives in `FrozenCLIPEmbedderWithCustomWords` — the SD1/SD2/SDXL **CLIP** conditioner's A1111 custom-words mechanism (`--embd-dir`). Qwen-Image-2.1 uses the LLM conditioner, whose `encode_prompt()` unconditionally calls `llm->compute()`; there is no CLI flag, server endpoint, or file-load path to supply precomputed hidden states (verified: only server mode is `img_gen`; upstream's single newer commit d637cfb adds only a sigma preset).

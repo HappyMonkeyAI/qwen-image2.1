@@ -63,8 +63,8 @@ def _image_dims(data: bytes):
     Returns None if the format is unrecognized — callers fall back to 0/0,
     which lets sd-server apply its own default.
     """
+    import struct
     if data[:8] == b"\x89PNG\r\n\x1a\n":
-        import struct
         return struct.unpack(">II", data[16:24])
     if data[:2] == b"\xff\xd8":  # JPEG: scan for a SOF0-SOF15 marker
         i = 2
@@ -79,6 +79,18 @@ def _image_dims(data: bytes):
             seg_len = struct.unpack(">H", data[i + 2:i + 4])[0]
             i += 2 + seg_len
     return None
+
+
+async def _err_detail(r) -> str:
+    """Extract a human-readable error from a failed response, whatever its body format."""
+    try:
+        d = await r.json()
+        if isinstance(d, dict) and d.get("detail"):
+            return str(d["detail"])
+    except Exception:
+        pass
+    text = (await r.text()).strip()
+    return text[:200] or f"HTTP {r.status}"
 
 
 async def _submit_job(payload: dict) -> dict:

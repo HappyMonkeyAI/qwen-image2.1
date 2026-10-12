@@ -60,6 +60,16 @@ async function trackJob(jobId) {
     }
 }
 
+async function _detail(r) {
+    // Failed responses may be JSON ({detail}) or plain text (e.g. "Internal Server Error").
+    try {
+        const d = await r.clone().json();
+        if (d && d.detail) return String(d.detail);
+    } catch (_) { /* not JSON — fall through to text */ }
+    const t = (await r.text()).trim();
+    return t.slice(0, 200) || `HTTP ${r.status}`;
+}
+
 // ---- Generate tab ----
 $('#genForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -81,7 +91,7 @@ $('#genForm').addEventListener('submit', async (e) => {
         const r = await fetch('/api/generate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         });
-        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await _detail(r));
         const { job_id } = await r.json();
         setStatus('Queued. Waiting for GPU…');
         await trackJob(job_id);
@@ -101,7 +111,7 @@ $('#assistBtn').addEventListener('click', async () => {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt }),
         });
-        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await _detail(r));
         const { expanded_prompt } = await r.json();
         $('#genPrompt').value = expanded_prompt;
     } catch (err) {
@@ -134,7 +144,7 @@ $('#editForm').addEventListener('submit', async (e) => {
     setStatus('Uploading + submitting edit job…');
     try {
         const r = await fetch('/api/edit', { method: 'POST', body: fd });
-        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await _detail(r));
         const { job_id } = await r.json();
         setStatus('Edit queued. Waiting for GPU…');
         await trackJob(job_id);

@@ -29,6 +29,12 @@ Newest first. Every `done` task cites the real command/output that proves it (AD
 - **Bug found & fixed: edits silently downscaled to 512×512.** The gateway hardcoded `width: 0, height: 0` in the edit payload, so sd-server fell back to its default instead of preserving the input image's size (first edit attempt produced a 512×512 PNG). Fix: added `_image_dims()` to `gateway/main.py` — stdlib-only PNG IHDR / JPEG SOF dimension reader — and the `/api/edit` handler now forwards the upload's real dimensions. Rebuilt gateway, re-ran edit → 1024×1024 confirmed.
 - **Operational note:** sd-server restarts (e.g. after a stopped probe) leave the gateway's httpx pool pointing at a dead peer for a few seconds — `/api/edit` returns `Internal Server Error` until the container is back; retry, don't rebuild.
 
+## 2026-10-12 — Edit crash on JPEG uploads fixed + frontend JSON-parse error hardened (V3 browser)
+
+- **Bug: every JPEG upload crashed the gateway with 500.** `_image_dims()` imported `struct` inside only the PNG branch, so the JPEG branch hit `UnboundLocalError` → plain-text "Internal Server Error" body. The frontend then tried `r.json()` on that text and showed `Unexpected token 'I', "Internal S"... is not valid JSON`.
+- **Fixes:** (1) moved `import struct` to the top of `_image_dims()`; (2) added `_detail(r)` to `web/js/main.js` — tries JSON `{detail}`, falls back to raw text — and switched all three error call sites (generate, prompt-assist, edit) to it. No more JSON-parse crash on any non-JSON error body.
+- **Verified:** PIL-generated valid 512×512 JPEG → gateway parser returns `(512, 512)` → `POST /api/edit` accepted (`job_6acd3247`) → completed → output PNG **512×512** (dimensions correctly preserved from the JPEG input). PNG path re-verified in a real browser earlier same day.
+
 ## Open items carried forward
 
 - **Phase 3** — deferred by user; design + patch-branch plan recorded above and in ROADMAP.md. No llama.cpp worker running anywhere yet; 192.168.5.232 ports 1234/8080/5000/8188 all closed as of today's probe.
